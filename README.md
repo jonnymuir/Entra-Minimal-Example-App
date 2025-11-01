@@ -44,25 +44,51 @@ builder.Services
 
 3. Entra ID Configuration (appsettings.json)
 
-Ensure your appsettings.json is configured with the necessary Entra ID settings, including a section for the Graph API scope required for the next step:
+Easiest practise is to put the required settings into secrets
+
+You will need to set up an ExternalID AzureAD tenant and get the values - make sure it is an ExternalID (the newer version of B2C) tenant, not your main tenant.
+
+Also set up a app registration to get the clientID (also called applicationID)
+
+When you set up the app registration, go to Manage / Authentication and make sure your Web redirect URIs has https://localhost:7050/signin-oidc (or whatever the port your local version is listening on - make sure it is https only too in your launch settings).
+
+Under Implicit grant and hybrid flows, Select the tokens you would like to be issued by the authorization endpoint. Select both options (Access Tokens and ID Tokens).
+
+Then go to App roles and create one called LinkedMembers.
+
+Next we need to setup a registration (sign in) user flow. This is done back at the AD Tenant / External Identities page. Under Self-service sign-up, you will see a User Flows options. Create one (I've called mine ExternalID_1_signup_signin). Choose Email with password as your identify provider. Here would be where we could add extra user attributes to collect if need be. Probably don't need too much as will do that in a seperate registration step when we want to add the LinkedMember role.
+
+Then under the "use" menu select applications and add our application from the app registrations.
+
+The setting you'll need from all that are the instance name followed by .ciamlogin.com - this is minimalexample in my case. It is the primary domain for the tenant. I think you might also be able to use the tenantID here (needs checking)
+
+TenantId is the AD TenantId - you can also use the full domain name.
+
+ClientId is from the app registration.
+
+```
+# Set Instance
+dotnet user-secrets set "AzureAd:Instance" "https://minimalexample.ciamlogin.com/"
+
+# Set TenantId
+dotnet user-secrets set "AzureAd:TenantId" "minimalexample.onmicrosoft.com"
+
+# Set ClientId
+dotnet user-secrets set "AzureAd:ClientId" "aa63d422-a6f1-47ae-b2de-745f1755ed38"
+
+# Set the most sensitive value: ClientSecret (or CertificateThumbprint)
+dotnet user-secrets set "AzureAd:ClientSecret" "[Your-Client-Secret]"
+```
+
+
 
 ```
 "AzureAd": {
-    "Instance": "[https://login.microsoftonline.com/](https://login.microsoftonline.com/)",
-    "TenantId": "[Your Tenant ID or 'organizations']",
-    "ClientId": "[Your Application Client ID]",
-    "ClientSecret": "[Your Client Secret]", // Required for app to get token
-    "ClientCapabilities": [ "CP1" ],
-    // Scopes needed for the Graph API call (role assignment)
-    "CalledApi": {
-        "Scopes": "[https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All](https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All)"
-    }
-},
-"EntraAd": {
-    // These GUIDs must be populated from your App Registration manifest and Service Principal
-    "LinkedMemberRoleId": "YOUR_ACTUAL_ROLE_GUID_HERE", 
-    "ServicePrincipalObjectId": "YOUR_ACTUAL_SERVICE_PRINCIPAL_ID" 
-}
+    "Instance": "https://minimalexample.ciamlogin.com/",
+    "TenantId": "minimalexample.onmicrosoft.com",
+    "ClientId": "aa63d422-a6f1-47ae-b2de-745f1755ed38",
+    "CallbackPath": "/signin-oidc"
+  },
 ```
 
 ## Claims Refresh Implementation
