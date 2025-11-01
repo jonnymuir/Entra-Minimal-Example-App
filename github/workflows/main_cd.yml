@@ -1,0 +1,82 @@
+name: Build, Publish, and Deploy to Azure App Service
+
+# Controls when the workflow will run
+on:
+  push:
+    # Triggers the workflow when pushing to the 'main' branch
+    branches: [ "main" ]
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Define environment variables used throughout the workflow
+env:
+  # The actual name of your Azure App Service
+  AZURE_WEBAPP_NAME: 'entra-mre-app-001' 
+  # The name of your .csproj file (e.g., 'WebApp.csproj')
+  PROJECT_FILE_PATH: 'MyMreApp.csproj' 
+  DOTNET_VERSION: '8.0.x'
+  # The path where dotnet publish will place the output
+  ARTIFACT_PATH: ${{ github.workspace }}/publish
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up .NET ${{ env.DOTNET_VERSION }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_FILE_PATH }}
+
+    - name: Build and Publish
+      run: |
+        dotnet build ${{ env.PROJECT_FILE_PATH }} --configuration Release --no-restore
+        # Publish the application to the ARTIFACT_PATH, creating the deployable package
+        dotnet publish ${{ env.PROJECT_FILE_PATH }} --configuration Release --no-build --output ${{ env.ARTIFACT_PATH }}
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: dotnet-app-release
+        path: ${{ env.ARTIFACT_PATH }}
+        
+  deploy:
+    runs-on: ubuntu-latest
+    # This job only runs after the 'build' job succeeds
+    needs: build
+    
+    # Optional: Configure a deployment environment if you use GitHub Environments
+    # environment:
+    #   name: 'Production'
+    #   url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: dotnet-app-release
+        path: ${{ env.ARTIFACT_PATH }}
+        
+    # --- NEW: Login using a Service Principal (OIDC alternative) ---
+    - name: Azure Login via Service Principal
+      uses: azure/login@v1
+      with:
+        # This secret must contain the JSON credentials for an Azure Service Principal
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        enable-AzPSSession: false # Recommended for CI/CD pipelines
+        
+    - name: 'Deploy to Azure Web App'
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        # Use the name of your Azure App Service
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        # NOTE: publish-profile is removed, as authentication is handled by azure/login
+        # Use the published output directory as the package source
+        package: ${{ env.ARTIFACT_PATH }}
