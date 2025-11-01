@@ -1,0 +1,76 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService AuthorizationService
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<style>
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th,
+    td {
+        text-align: left;
+        /* Changed to left for better claim readability */
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+        border-top: 1px solid #ddd;
+    }
+</style>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+
+    @if (@User.Identity is not null && @User.Identity.IsAuthenticated)
+    {
+        // Define your role values
+        var linkedMemberRoleValue = "LinkedMember";
+
+        // Check if the user is in the LinkedMember role
+        var isLinkedMember = User.IsInRole(linkedMemberRoleValue);
+
+        // --- Role Status Section ---
+        <div class="card p-4 mb-4" style="background-color: #f7f7f7;">
+            @if (isLinkedMember)
+            {
+                <h3 class="text-success">✅ Status: Linked Pension Member</h3>
+                <p>Welcome! You have successfully linked your pension account and have full access to our features.</p>
+            }
+            else
+            {
+                <h3 class="text-warning">⚠️ Status: Unlinked Guest</h3>
+                <p>
+                    You are currently signed in as an Unlinked Guest. To access your personal pension data,
+                    you need to complete the member linking process.
+                </p>
+                <a href="/Linking" class="btn btn-warning btn-lg mt-3">Link Your Pension Account Now</a>
+            }
+        </div>
+        // --- End Role Status Section ---
+
+        <p>You are signed in! Below are the claims in your ID token:</p>
+
+        <table>
+            <tbody>
+                @foreach (var item in @User.Claims)
+                {
+                    <tr>
+                        <td><strong>@item.Type</strong></td>
+                        <td>@item.Value</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <a href="/MicrosoftIdentity/Account/SignOut" class="btn btn-danger mt-4">Sign Out</a>
+    }
+    else
+    {
+        <p>Please sign in or create an account to continue:</p>
+
+        <a href="/MicrosoftIdentity/Account/SignIn" class="btn btn-primary">Sign In / Register</a>
+    }
+</div>

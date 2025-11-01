@@ -1,0 +1,39 @@
+@{
+    ViewData["Title"] = "Emulate Linking";
+}
+
+<div class="container mt-5">
+    <h1>Post-Registration Linking</h1>
+    <p>This is a pretend post registration step to emulate linking to a member. The action below forces a refresh of your claims from Entra ID to pick up the new LinkedMember role (assuming it was assigned in the portal).</p>
+
+    <form asp-controller="Linking" asp-action="LinkAndRefreshClaims" method="post">
+        <button type="submit" class="btn btn-primary">
+            Refresh Claims & Emulate Linking
+        </button>
+    </form>
+
+    <h3 class="mt-4">Current Roles Status:</h3>
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        @if (User.Claims.Any(c => c.Type == "roles"))
+        {
+            <p><strong>Is Linked Member?</strong> @User.IsInRole("LinkedMember")</p>
+            
+            <h4>All Claims:</h4>
+            <ul>
+                @foreach (var claim in User.Claims.Where(c => c.Type == "roles"))
+                {
+                    <li>@claim.Value (Type: @claim.Type)</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No custom "roles" claims found.</p>
+        }
+    }
+    else
+    {
+        <p>User is not authenticated.</p>
+    }
+</div>
