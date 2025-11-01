@@ -26,6 +26,7 @@ Microsoft.Identity.Web.MicrosoftGraph
 
 The core fix for User.IsInRole() is applied early in Program.cs:
 
+```
 // CRITICAL: Disable default inbound claim mapping (prevents long URI claims)
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false; 
 
@@ -39,12 +40,13 @@ builder.Services
         // Also set the name claim for User.Identity.Name
         options.TokenValidationParameters.NameClaimType = "name";
     });
-
+```
 
 3. Entra ID Configuration (appsettings.json)
 
 Ensure your appsettings.json is configured with the necessary Entra ID settings, including a section for the Graph API scope required for the next step:
 
+```
 "AzureAd": {
     "Instance": "[https://login.microsoftonline.com/](https://login.microsoftonline.com/)",
     "TenantId": "[Your Tenant ID or 'organizations']",
@@ -61,7 +63,7 @@ Ensure your appsettings.json is configured with the necessary Entra ID settings,
     "LinkedMemberRoleId": "YOUR_ACTUAL_ROLE_GUID_HERE", 
     "ServicePrincipalObjectId": "YOUR_ACTUAL_SERVICE_PRINCIPAL_ID" 
 }
-
+```
 
 ## Claims Refresh Implementation
 
@@ -69,6 +71,7 @@ The claims refresh logic is implemented in the LinkingController within the Link
 
 Logic (LinkingController.cs)
 
+```
 // ... inside LinkAndRefreshClaims() action ...
 var properties = new AuthenticationProperties();
 
@@ -79,7 +82,7 @@ properties.RedirectUri = Url.Action("Index", "Home");
 properties.Parameters.Add("max_age", "0"); 
 
 return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
-
+```
 
 ### Purpose
 
