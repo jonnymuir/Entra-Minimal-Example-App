@@ -131,4 +131,4 @@ This sequence forces Entra ID to issue a new ID token (with refreshed claims) wh
 
 Try it out here:
 
-[Live Demo](entra-mre-app-001-gxgqcphjb5btdgg6.uksouth-01.azurewebsites.net)
+[Live Demo](https://entra-mre-app-001-gxgqcphjb5btdgg6.uksouth-01.azurewebsites.net)
