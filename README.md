@@ -126,3 +126,9 @@ Then we clear our claims, a do a re-challenge for our login to refresh them. And
 ### Purpose
 
 This sequence forces Entra ID to issue a new ID token (with refreshed claims) while seamlessly maintaining the user's browser session.
+
+### Live demo
+
+Try it out here:
+
+entra-mre-app-001-gxgqcphjb5btdgg6.uksouth-01.azurewebsites.net
