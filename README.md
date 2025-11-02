@@ -12,17 +12,8 @@ Claims Refresh without Logout: Implementing a method to force a silent re-authen
 
 ## Initial Setup and Configuration
 
-1. Project Dependencies
 
-The solution uses the following key NuGet packages:
-
-Microsoft.Identity.Web
-
-Microsoft.Identity.Web.UI
-
-Microsoft.Identity.Web.MicrosoftGraph
-
-2. Role Claim Mapping (Program.cs)
+### Role Claim Mapping (Program.cs)
 
 The core fix for User.IsInRole() is applied early in Program.cs:
 
@@ -42,7 +33,7 @@ builder.Services
     });
 ```
 
-3. Entra ID Configuration (appsettings.json)
+### Entra ID Configuration 
 
 Easiest practise is to put the required settings into secrets
 
@@ -54,7 +45,7 @@ When you set up the app registration, go to Manage / Authentication and make sur
 
 Under Implicit grant and hybrid flows, Select the tokens you would like to be issued by the authorization endpoint. Select both options (Access Tokens and ID Tokens).
 
-Then go to App roles and create one called LinkedMembers.
+Then go to App roles and create one called LinkedMember.
 
 Next we need to setup a registration (sign in) user flow. This is done back at the AD Tenant / External Identities page. Under Self-service sign-up, you will see a User Flows options. Create one (I've called mine ExternalID_1_signup_signin). Choose Email with password as your identify provider. Here would be where we could add extra user attributes to collect if need be. Probably don't need too much as will do that in a seperate registration step when we want to add the LinkedMember role.
 
@@ -62,9 +53,23 @@ Then under the "use" menu select applications and add our application from the a
 
 The setting you'll need from all that are the instance name followed by .ciamlogin.com - this is minimalexample in my case. It is the primary domain for the tenant. I think you might also be able to use the tenantID here (needs checking)
 
+Next you need to set up your app to be able to call Microsoft Graph to add the roles to your newly created user. I've used the same app registration to do this, but in practise it may be better to set up a new one specifically for this purpose.
+
+Create a secret in the app regstration so we can do a none user present authentication to the Graph API. Call it something sensible like MyWebAppLinkingSecret, however it is the value you need.
+
+You then need to go to the API permissions and give the app the graph api permissions needed to link to the role. This is https://graph.microsoft.com/AppRoleAssignment.ReadWrite.All
+
+When you have added the API permission you also need to Grant Admin consent for the application (this is a link button above the permission list)
+
 TenantId is the AD TenantId - you can also use the full domain name.
 
 ClientId is from the app registration.
+
+LinkedMemberRoleID - you'll need to look in the app registration manifest and grab hold of the guid for the LinkedMember role you created above.
+
+ServicePrincipalObjectId - For this example we are using the app registration itself to update the user to a LinkedMember, for this grab the objectid from the app registration overview
+
+ClientSecret - The value of the secret created above
 
 ```
 # Set Instance
@@ -76,11 +81,20 @@ dotnet user-secrets set "AzureAd:TenantId" "minimalexample.onmicrosoft.com"
 # Set ClientId
 dotnet user-secrets set "AzureAd:ClientId" "aa63d422-a6f1-47ae-b2de-745f1755ed38"
 
+# Set the ClientId for Setting the Role
+dotnet user-secrets set "SetRoleExample:ClientId" "aa63d422-a6f1-47ae-b2de-745f1755ed38"
+
+# Set LinkedMemberRoleID
+dotnet user-secrets set "SetRoleExample:LinkedMemberRoleId" "33599fc2-63dc-400d-b29a-2c39b19e13c8"
+
+# Set ServicePrincipalObjectId
+dotnet user-secrets set "SetRoleExample:ServicePrincipalObjectId" "a9593b7c-f31e-49d0-8440-04896e88601f"
+
 # Set the most sensitive value: ClientSecret (or CertificateThumbprint)
-dotnet user-secrets set "AzureAd:ClientSecret" "[Your-Client-Secret]"
+dotnet user-secrets set "SetRoleExample:ClientSecret" "[Your-Client-Secret]"
 ```
 
-
+I.e. we are building up a app settings that looks like this
 
 ```
 "AzureAd": {
@@ -89,31 +103,26 @@ dotnet user-secrets set "AzureAd:ClientSecret" "[Your-Client-Secret]"
     "ClientId": "aa63d422-a6f1-47ae-b2de-745f1755ed38",
     "CallbackPath": "/signin-oidc"
   },
+"SetRoleExample": {
+    "ClientId": "aa63d422-a6f1-47ae-b2de-745f1755ed38",
+    "LinkedMemberRoleId": "33599fc2-63dc-400d-b29a-2c39b19e13c8",
+    "ServicePrincipalObjectId": "a9593b7c-f31e-49d0-8440-04896e88601f",
+    "ClientSecret": "[Your-Client-Secret]"
+}
 ```
 
 ## Claims Refresh Implementation
 
 The claims refresh logic is implemented in the LinkingController within the LinkAndRefreshClaims action.
 
-Logic (LinkingController.cs)
+We need to do a polling mechanism, because after you add the role (LinkedMember), it can take Entra a few seconds to propogate it, and therefore pick it up as a new role for your logged in member.
 
-```
-// ... inside LinkAndRefreshClaims() action ...
-var properties = new AuthenticationProperties();
+Look at the code in LinkingController, it shows an example of how to do this.
 
-// The user will be redirected back here after the silent refresh completes.
-properties.RedirectUri = Url.Action("Index", "Home"); 
+We call the Graph API, manually in our case, I wanted to keep it seperate from the authentication of the minimal app. This adds the role.
 
-// The CRITICAL OIDC parameter to force Entra ID to check for a fresh session (0 seconds).
-properties.Parameters.Add("max_age", "0"); 
-
-return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
-```
+Then we clear our claims, a do a re-challenge for our login to refresh them. And repeat if neccessary,
 
 ### Purpose
 
 This sequence forces Entra ID to issue a new ID token (with refreshed claims) while seamlessly maintaining the user's browser session.
-
-⏭️ Next Step: Graph API Integration
-
-The next planned feature for this example is to integrate the Microsoft Graph API into the LinkAndRefreshClaims action to programmatically assign the LinkedMember role before triggering the claims refresh. This will replace the current need for manual role assignment in the Azure Portal.

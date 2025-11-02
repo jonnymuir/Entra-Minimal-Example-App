@@ -4,36 +4,55 @@
 
 <div class="container mt-5">
     <h1>Post-Registration Linking</h1>
-    <p>This is a pretend post registration step to emulate linking to a member. The action below forces a refresh of your claims from Entra ID to pick up the new LinkedMember role (assuming it was assigned in the portal).</p>
+    <p>This is a pretend post registration step to emulate linking to a member. The action below forces a refresh of
+        your claims from Entra ID to pick up the new LinkedMember role (assuming it was assigned in the portal).</p>
 
-    <form asp-controller="Linking" asp-action="LinkAndRefreshClaims" method="post">
-        <button type="submit" class="btn btn-primary">
-            Refresh Claims & Emulate Linking
-        </button>
-    </form>
-
-    <h3 class="mt-4">Current Roles Status:</h3>
-    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    @if (TempData["ValidationMessage"] != null)
     {
-        @if (User.Claims.Any(c => c.Type == "roles"))
-        {
-            <p><strong>Is Linked Member?</strong> @User.IsInRole("LinkedMember")</p>
-            
-            <h4>All Claims:</h4>
-            <ul>
-                @foreach (var claim in User.Claims.Where(c => c.Type == "roles"))
-                {
-                    <li>@claim.Value (Type: @claim.Type)</li>
-                }
-            </ul>
-        }
-        else
-        {
-            <p>No custom "roles" claims found.</p>
-        }
+        <div class="alert alert-warning" role="alert">
+            <strong>Validation Error:</strong> @TempData["ValidationMessage"]
+        </div>
+    }
+
+    @if (User.IsInRole("LinkedMember"))
+    {
+    <div class="alert alert-success" role="alert">
+        <h4 class="alert-heading">You are already linked!</h4>
+        <p>Your account is already linked to a pension member. No further action is needed.</p>
+    </div>
     }
     else
     {
-        <p>User is not authenticated.</p>
+    <div class="card p-4 shadow">
+        <h5 class="card-title mb-3">Verification Details</h5>
+        <p class="text-muted small">
+            This step emulates collecting identifying data and validating it against a backend system (like a membership
+            database).
+            <br>For this POC, enter NI: AB123456C and Ref: 123456 to proceed.
+        </p>
+
+
+        <form asp-controller="Linking" asp-action="LinkAndRefreshClaims" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+                <label for="niNumber" class="form-label">NI Number</label>
+                <input type="text" class="form-control" id="niNumber" name="niNumber" required
+                    placeholder="e.g., AB123456C">
+            </div>
+
+            <div class="mb-4">
+                <label for="policyRef" class="form-label">Policy Reference</label>
+                <input type="text" class="form-control" id="policyRef" name="policyRef" required
+                    placeholder="e.g., 123456">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100">
+                Verify & Emulate Linking
+            </button>
+        </form>
+    </div>
+
     }
+
 </div>

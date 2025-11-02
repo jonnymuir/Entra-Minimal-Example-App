@@ -1,0 +1,41 @@
+@model dynamic
+
+@{
+    ViewData["Title"] = "Synchronisation In Progress";
+}
+
+<div class="row">
+    <div class="col-md-6 offset-md-3 text-center">
+        <h2 class="mb-4">Checking Permissions. This is just for our demo - show the user a better page than in reality</h2>
+
+        @* Display Status *@
+        <div class="alert alert-info" role="alert">
+            <strong>Synchronisation in Progress.</strong> 
+            Attempt @ViewData["Attempts"] of @ViewData["MaxAttempts"].
+            We are performing a silent login check to verify your new role.
+        </div>
+
+        <div class="mt-5">
+            <div class="spinner-grow text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading.</span>
+            </div>
+            <p class="mt-3 text-muted">Redirecting in 2 seconds.</p>
+        </div>
+
+        @* Hidden Form that is submitted by JavaScript to trigger the next challenge *@
+        <form id="pollForm" asp-action="ContinuePolling" method="post" style="display: none;">
+            @Html.AntiForgeryToken()
+            <button type="submit">Continue</button>
+        </form>
+    </div>
+</div>
+
+@* JavaScript to automatically trigger the next challenge after a short delay *@
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Wait 2 seconds before automatically submitting the form. 
+        setTimeout(function() {
+            document.getElementById('pollForm').submit();
+        }, 2000); //
+    });
+</script>
