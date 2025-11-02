@@ -21,7 +21,7 @@ flowchart TD
     A[Home Page] -->|Login / Register| B(Entra Login)
     B -->|Login| BB{Has LinkedMember Role?}
     BB -->|No|D
-    BB -->|Yes|G
+    BB -->|Yes|H
     B -->|Create New User| C(Entra Sign Up)
     C --> D[Post Sign Up Registration]
     D -->|Link to Back Office Membership| E([Add LinkedMember Role])
