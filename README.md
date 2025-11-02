@@ -4,38 +4,42 @@ This repository serves as a minimal reproducible example (MRE) for handling spec
 
 ## Key Focus Areas
 
-This project demonstrates the solution for two primary configuration issues, both implemented in the current code base:
+The key focus of this project is to show how you can do a two step registration using EntraID.
 
-Correcting Claims Mapping (The Core Fix): Ensuring the standard .NET authorization system ([Authorize(Roles="RoleName")] and User.IsInRole()) correctly recognizes roles issued via the standard OIDC "roles" claim from Entra ID, instead of the default Microsoft-specific claim type URI.
+The concept is as follows. 
 
-Claims Refresh without Logout: Implementing a method to force a silent re-authentication with Entra ID to pick up new role assignments (e.g., post-registration roles) without forcing the user to fully log out and sign back in.
+Use Entra and the built in signup flows to create a user in an ExternalID tenant but with no specific roles.
+
+Have an additional registration step that typically you would go to a back office to tie up details to, the example I have used is for linking up users to members in a pensions member portal.
+
+Using the output of the additional registration to make decisions on whether to add additional roles, which can then be used to secure endpoints.
+
+Present as a single user journey with no need to enter passwords multiple times or logout. This is done with a claims refresh mechanism.
+
+```mermaid
+flowchart TD
+    A[Home Page] -->|Login / Register| B(Entra Login)
+    B -->|Login| BB{Has LinkedMember Role?}
+    BB -->|No|D
+    BB -->|Yes|G
+    B -->|Create New User| C(Entra Sign Up)
+    C --> D[Post Sign Up Registration]
+    D -->|Link to Back Office Membership| E([Add LinkedMember Role])
+    E -->F[Wait until syncronised]
+    F -->G{Role added?}
+    G -->|No|F
+    G -->|Yes|H[Logged In and Registered]
+```
+
+### Live demo
+
+Try it out here:
+
+[Live Demo](https://entra-mre-app-001-gxgqcphjb5btdgg6.uksouth-01.azurewebsites.net)
 
 ## Initial Setup and Configuration
 
-
-### Role Claim Mapping (Program.cs)
-
-The core fix for User.IsInRole() is applied early in Program.cs:
-
-```
-// CRITICAL: Disable default inbound claim mapping (prevents long URI claims)
-JwtSecurityTokenHandler.DefaultMapInboundClaims = false; 
-
-// ... inside the service configuration ...
-builder.Services
-    .AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-    .AddMicrosoftIdentityWebApp(builder.Configuration, options =>
-    {
-        // Ensure the OIDC handler recognizes "roles" from the token
-        options.TokenValidationParameters.RoleClaimType = "roles";
-        // Also set the name claim for User.Identity.Name
-        options.TokenValidationParameters.NameClaimType = "name";
-    });
-```
-
 ### Entra ID Configuration 
-
-Easiest practise is to put the required settings into secrets
 
 You will need to set up an ExternalID AzureAD tenant and get the values - make sure it is an ExternalID (the newer version of B2C) tenant, not your main tenant.
 
@@ -70,6 +74,9 @@ LinkedMemberRoleID - you'll need to look in the app registration manifest and gr
 ServicePrincipalObjectId - For this example we are using the app registration itself to update the user to a LinkedMember, for this grab the objectid from the app registration overview
 
 ClientSecret - The value of the secret created above
+
+Easiest practise is to put the required settings into secrets as follows to represent what the app settings need to be for the example:
+
 
 ```
 # Set Instance
@@ -127,8 +134,3 @@ Then we clear our claims, a do a re-challenge for our login to refresh them. And
 
 This sequence forces Entra ID to issue a new ID token (with refreshed claims) while seamlessly maintaining the user's browser session.
 
-### Live demo
-
-Try it out here:
-
-[Live Demo](https://entra-mre-app-001-gxgqcphjb5btdgg6.uksouth-01.azurewebsites.net)
